@@ -41,8 +41,7 @@ export default {
   },
   methods: {
     init() {
-      const htmldome = '<p>来来来来来带来</p><table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">哈哈哈哈</td><td style="width: 48.6688%; height: 22.3984px;">一一春春春春</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">11111111</td><td style="width: 48.6688%; height: 22.3984px;">阿塞阀塞缝</td></tr></tbody></table'
-      console.log(htmldome);
+      const htmldome = '<p>来来来来来带来</p><table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">哈哈哈哈</td><td style="width: 48.6688%; height: 22.3984px;">一一春春春春</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">11111111</td><td style="width: 48.6688%; height: 22.3984px;">阿塞阀塞缝</td></tr></tbody></table>'
       tinymce.editors['editor1'].setContent(htmldome)
       tinymce.editors['editor2'].setContent(htmldome)
     },
