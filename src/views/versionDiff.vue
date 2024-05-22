@@ -17,7 +17,7 @@
 
 <script>
 import Editor from '@tinymce/tinymce-vue'
-import HtmlDiff2 from '@/common/htmlDiff'
+import HtmlDiff from '@/common/htmlDiff'
 
 export default {
   name: 'AboutView',
@@ -53,7 +53,7 @@ export default {
 
       let html1 = editor1Content;
       let html2 = editor2Content;
-      const htmlDiff = new HtmlDiff2();
+      const htmlDiff = new HtmlDiff();
       const { time, diffHtml } = htmlDiff.diff_launch(html1, html2);
       console.log(diffHtml);
       tinymce.editors['editor3'].setContent(diffHtml)
