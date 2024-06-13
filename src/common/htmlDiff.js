@@ -8,6 +8,8 @@ export default class HtmlDiff {
   }
 
   diff_launch(html1, html2) {
+    if (!html1) html1 = '';
+    if (!html2) html2 = '';
     const htmlJson1 = this.htmlToJson(html1)
     const htmlJson2 = this.htmlToJson(html2)
     const fragments1 = []
@@ -20,8 +22,8 @@ export default class HtmlDiff {
       const jsonHtml = this.jsonToHtml(item).outerHTML;
       fragments2.push(jsonHtml)
     })
-    const [htmlStr1, htmlSt2]=this.compareAndPad(fragments1, fragments2)
-    console.log(htmlStr1, htmlSt2);
+    const [htmlStr1, htmlSt2] = this.compareAndPad(fragments1, fragments2)
+    // console.log(htmlStr1, htmlSt2);
     let diffHtml = '';
     let startTime = new Date().getTime();
 
@@ -44,7 +46,7 @@ export default class HtmlDiff {
     return match ? match[0] : '';
   }
 
-  compareAndPad(arr1, arr2)  {
+  compareAndPad(arr1, arr2) {
     let result1 = [];
     let result2 = [];
     let i = 0, j = 0;
@@ -88,13 +90,11 @@ export default class HtmlDiff {
 
 
   htmlToJson(html) {
-
     // 创建一个虚拟的DOM元素来解析HTML字符串
     var parser = new DOMParser();
     var doc = parser.parseFromString(html, 'text/html');
     // 获取<body>标签
     var bodyElement = doc.querySelector('body');
-    // console.log(bodyElement);
     // 定义一个函数来将DOM元素转换为JSON格式
     function domToJson(element) {
       var result = {};
@@ -121,10 +121,8 @@ export default class HtmlDiff {
     // 将整个HTML文档转换为JSON
     const jsonData = domToJson(bodyElement);
 
-    // 打印JSON数据
-    // console.log(JSON.stringify(jsonData.children, null, 2));
-    return jsonData.children;
-
+    // 确保返回一个数组
+    return jsonData.children || [];
   }
   jsonToHtml(json) {
     var element = document.createElement(json.name);
@@ -147,7 +145,7 @@ export default class HtmlDiff {
   containsTable(html) {
     return html.includes('<table');
   }
-  tableToHtml(html, table, color) {
+  tableToHtml(html, table, type) {
     // 提取原始表格的样式属性
     const tableMatch = html.match(/<table([^>]*)>/);
     const tableAttributes = tableMatch ? tableMatch[1] : '';
@@ -160,7 +158,12 @@ export default class HtmlDiff {
         // 提取单元格的样式属性
         const cellMatch = cell.match(/<td([^>]*)>/);
         const cellAttributes = cellMatch ? cellMatch[1] : '';
-        diffHtml += `<td${cellAttributes} style="background-color: ${color};">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</td>`;
+        if (type === 'del') {
+          diffHtml += `<td${cellAttributes} ><del style="color: #F76964;">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</del></td>`;
+        } else {
+          diffHtml += `<td${cellAttributes} ><ins style="color: #1E5FCD;">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</ins></td>`;
+        }
+
       }
       diffHtml += '</tr>';
     }
@@ -170,18 +173,96 @@ export default class HtmlDiff {
   tableDiff(html1, html2) {
     let table1 = this.extractTable(html1);
     let table2 = this.extractTable(html2);
-    if (table1.length > 0 && table2.length > 0) {
-      // 若表格中有一个为空，则按简单文本比对
-      return this.textDiff(html1, html2);
-    } else if (table1.length > 0 && table2.length == 0) {
-      const diffHtml = this.tableToHtml(html1, table1, 'red');
+
+    // 如果其中一个表格为空
+    if (table1.length > 0 && table2.length === 0) {
+      const diffHtml = this.tableToHtml(html1, table1, 'del');
       return { time: 0, diffHtml };
-    } else {
-      const diffHtml = this.tableToHtml(html2, table2, 'green');
+    } else if (table1.length === 0 && table2.length > 0) {
+
+      const diffHtml = this.tableToHtml(html2, table2, 'ins');
       return { time: 0, diffHtml };
     }
+
+    // 确保表格的行数一致
+    const maxRows = Math.max(table1.length, table2.length);
+    for (let i = 0; i < maxRows; i++) {
+      table1[i] = table1[i] || [];
+      table2[i] = table2[i] || [];
+    }
+
+    // 确保每行的单元格数一致
+    table1.forEach((row, rowIndex) => {
+      const maxCols = Math.max(row.length, table2[rowIndex].length);
+      for (let colIndex = 0; colIndex < maxCols; colIndex++) {
+        table1[rowIndex][colIndex] = table1[rowIndex][colIndex] || '';
+        table2[rowIndex][colIndex] = table2[rowIndex][colIndex] || '';
+      }
+    });
+
+    const diffHtml = this.generateDiffTableHtml(html1, html2, table1, table2);
+    return { time: 0, diffHtml };
   }
 
+  generateDiffTableHtml(html1, html2, table1, table2) {
+    const tableAttributes = this.getTableAttributes(html1);
+
+    let diffHtml = `<table ${tableAttributes}>`;
+
+    for (let i = 0; i < table1.length; i++) {
+      diffHtml += '<tr>';
+      for (let j = 0; j < table1[i].length; j++) {
+        const cell1 = table1[i][j];
+        const cell2 = table2[i][j];
+
+        const cellAttributes = this.getCellAttributes(html2, i, j);
+
+        const cellDiffHtml = this.cellDiff(cell1, cell2);
+        diffHtml += `<td ${cellAttributes}>${cellDiffHtml}</td>`;
+      }
+      diffHtml += '</tr>';
+    }
+
+    diffHtml += '</table>';
+    return diffHtml;
+  }
+  getTableAttributes(html) {
+    const tableMatch = html.match(/<table([^>]*)>/);
+    return tableMatch ? tableMatch[1] : '';
+  }
+  getCellAttributes(html, rowIndex, colIndex) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const table = doc.querySelector('table');
+    const row = table && table.rows[rowIndex];
+    const cell = row && row.cells[colIndex];
+    if (cell) {
+      const cellAttributes = [];
+      for (let attr of cell.attributes) {
+        cellAttributes.push(`${attr.name}="${attr.value}"`);
+      }
+      return cellAttributes.join(' ');
+    }
+    return '';
+  }
+  cellDiff(cell1, cell2) {
+    var dmp = new diff_match_patch();
+    var diffs = dmp.diff_main(cell1, cell2);
+    dmp.diff_cleanupSemantic(diffs);
+
+    let diffHtml = '';
+    diffs.forEach(([type, text]) => {
+      if (type === 0) {
+        diffHtml += text;
+      } else if (type === -1) {
+        diffHtml += `<del style="color: #F76964;">${text}</del>`;
+      } else if (type === 1) {
+        diffHtml += `<ins style="color: #1E5FCD;">${text}</ins>`;
+      }
+    });
+
+    return diffHtml;
+  }
   extractTable(html) {
     let parser = new DOMParser();
     let doc = parser.parseFromString(html, 'text/html');
@@ -208,6 +289,8 @@ export default class HtmlDiff {
     dmp.Diff_Timeout = this.Diff_Timeout;
     var ms_start = (new Date).getTime();
     var diff = dmp.diff_main(text1, text2, true);
+
+    console.log(diff.flat(Infinity), 'diff=============diff');
     var ms_end = (new Date).getTime();
 
     let time = ms_end - ms_start;
@@ -343,9 +426,9 @@ export default class HtmlDiff {
     if (diffType === 0) {
       return diffText;
     } else if (diffType === -1) {
-      return '<del style="background-color: red;">' + diffText + '</del>';
+      return '<del style="color:#F76964">' + diffText + '</del>';
     } else {
-      return '<ins style="background-color: green;"> ' + diffText + '</ins>';
+      return '<ins style="color:#1E5FCD"> ' + diffText + '</ins>';
     }
   }
 }

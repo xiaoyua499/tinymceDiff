@@ -47,15 +47,15 @@ export default {
     },
     showDiff() {
       const editor1Content = tinymce.get('editor1').getContent()
-      console.log(editor1Content)
+      // console.log(editor1Content)
       const editor2Content = tinymce.get('editor2').getContent()
-      console.log(editor2Content)
+      // console.log(editor2Content)
 
       let html1 = editor1Content;
       let html2 = editor2Content;
       const htmlDiff = new HtmlDiff();
       const { time, diffHtml } = htmlDiff.diff_launch(html1, html2);
-      console.log(diffHtml);
+      // console.log(diffHtml);
       tinymce.editors['editor3'].setContent(diffHtml)
     }
   }
