@@ -205,7 +205,7 @@ export default class HtmlDiff {
   }
 
   generateDiffTableHtml(html1, html2, table1, table2) {
-    const tableAttributes = this.getTableAttributes(html1);
+    const tableAttributes = this.getTableAttributes(html2);
 
     let diffHtml = `<table ${tableAttributes}>`;
 
