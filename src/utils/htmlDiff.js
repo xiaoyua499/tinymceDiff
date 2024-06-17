@@ -5,28 +5,24 @@ export default class HtmlDiff {
   constructor() {
     this.ignore_tag = [];
     this.Diff_Timeout = 0;
+    this.del_color = '#F76964'
+    this.ins_color = '#1E5FCD'
   }
-
+  /**
+   * 输入需要比对的html字符串，返回比对结果
+   * @param {string} html1 比对的第一个html
+   * @param {string} html2 比对第二个html(以此为基准)
+   * @returns {object} 比对结果
+   */
   diff_launch(html1, html2) {
     if (!html1) html1 = '';
     if (!html2) html2 = '';
-    const htmlJson1 = this.htmlToJson(html1)
-    const htmlJson2 = this.htmlToJson(html2)
-    const fragments1 = []
-    const fragments2 = []
-    htmlJson1.forEach(item => {
-      const jsonHtml = this.jsonToHtml(item).outerHTML;
-      fragments1.push(jsonHtml)
-    })
-    htmlJson2.forEach(item => {
-      const jsonHtml = this.jsonToHtml(item).outerHTML;
-      fragments2.push(jsonHtml)
-    })
+    const fragments1 = this.processHtml(html1);
+    const fragments2 = this.processHtml(html2);
     const [htmlStr1, htmlSt2] = this.compareAndPad(fragments1, fragments2)
     // console.log(htmlStr1, htmlSt2);
     let diffHtml = '';
     let startTime = new Date().getTime();
-
     while (htmlStr1.length || htmlSt2.length) {
       const fragment1 = htmlStr1.shift() || '';
       const fragment2 = htmlSt2.shift() || '';
@@ -41,42 +37,62 @@ export default class HtmlDiff {
     let endTime = new Date().getTime();
     return { time: endTime - startTime, diffHtml };
   }
+  /**
+   * 对传入的html进行加工
+   * @param {string} html 需要加工的html
+   * @returns {Array} 加工后的html数组
+   */
+  processHtml(html){
+    const htmlJson = this.htmlToJson(html)
+    const fragments = []
+    htmlJson.forEach(item => {
+      const jsonHtml = this.jsonToHtml(item).outerHTML;
+      fragments.push(jsonHtml)
+    })
+    return fragments
+  }
+  /**
+ * 获取html中的闭合标签
+ * @param {string} html - 待处理的html字符串
+ * @returns {string} - 闭合标签
+ */
   getClosingTag(html) {
     const match = html.match(/<[^>]+>/);
     return match ? match[0] : '';
   }
-
-  compareAndPad(arr1, arr2) {
+  /**
+   * 
+   * @param {Array} fragments1 第一个HTML的fragments数组
+   * @param {Array} fragments2 第二个HTML的fragments数组
+   * @returns {Array} 返回两个数组比较后的结果
+   */
+  compareAndPad(fragments1, fragments2) {
     let result1 = [];
     let result2 = [];
     let i = 0, j = 0;
 
-    while (i < arr1.length || j < arr2.length) {
-      let item1 = arr1[i] !== undefined ? arr1[i] : '';
-      let item2 = arr2[j] !== undefined ? arr2[j] : '';
+    while (i < fragments1.length || j < fragments2.length) {
+      let item1 = fragments1[i] !== undefined ? fragments1[i] : '';
+      let item2 = fragments2[j] !== undefined ? fragments2[j] : '';
 
       let outermostTag1 = this.getClosingTag(item1);
       let outermostTag2 = this.getClosingTag(item2);
 
       if (outermostTag1 === outermostTag2) {
+        // 如果最外层标签相同，将 item1 和 item2 分别添加到 result1 和 result2 中
         result1.push(item1);
         result2.push(item2);
         i++;
         j++;
       } else {
-        if (!item1) {
-          result1.push('');
-          result2.push(item2);
-          j++;
-        } else if (!item2) {
-          result1.push(item1);
-          result2.push('');
-          i++;
-        } else if (outermostTag1 && !outermostTag2) {
+        if (!item1 || (outermostTag1 && !outermostTag2)) {
+          // 如果 item1 为空，或者 outermostTag1 存在而 outermostTag2 不存在
+          // 将空字符串加入 result1，将 item2 加入 result2
           result1.push('');
           result2.push(item2);
           j++;
         } else {
+          // 否则，将 item1 加入 result1，将空字符串加入 result2
           result1.push(item1);
           result2.push('');
           i++;
@@ -87,8 +103,11 @@ export default class HtmlDiff {
     return [result1, result2];
   }
 
-
-
+  /**
+   * 将HTML字符串转换为JSON格式
+   * @param {string} html - HTML字符串
+   * @returns {object} JSON格式的HTML对象
+   */
   htmlToJson(html) {
     // 创建一个虚拟的DOM元素来解析HTML字符串
     var parser = new DOMParser();
@@ -124,6 +143,11 @@ export default class HtmlDiff {
     // 确保返回一个数组
     return jsonData.children || [];
   }
+  /**
+   * 将JSON格式的HTML对象转换为HTML字符串
+   * @param {object} json - JSON格式的HTML对象
+   * @returns {string} HTML字符串
+   */
   jsonToHtml(json) {
     var element = document.createElement(json.name);
     for (var key in json.attrs) {
@@ -141,10 +165,21 @@ export default class HtmlDiff {
     }
     return element;
   }
-
+  /**
+   * 检查传入的HTML字符串是否包含<table>标签。
+   * @param {string} html - 待处理的html字符串
+   * @returns {boolean} - 返回是否包含表格标签
+   */
   containsTable(html) {
     return html.includes('<table');
   }
+  /**
+   * 将表格还原为HTML格式,并保留原来的样式
+   * @param {*} html 
+   * @param {*} table 
+   * @param {*} type 
+   * @returns 
+   */
   tableToHtml(html, table, type) {
     // 提取原始表格的样式属性
     const tableMatch = html.match(/<table([^>]*)>/);
@@ -158,11 +193,8 @@ export default class HtmlDiff {
         // 提取单元格的样式属性
         const cellMatch = cell.match(/<td([^>]*)>/);
         const cellAttributes = cellMatch ? cellMatch[1] : '';
-        if (type === 'del') {
-          diffHtml += `<td${cellAttributes} ><del style="color: #F76964;">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</del></td>`;
-        } else {
-          diffHtml += `<td${cellAttributes} ><ins style="color: #1E5FCD;">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</ins></td>`;
-        }
+        const diff_color = type === 'del' ? this.del_color : this.ins_color
+        diffHtml += `<td${cellAttributes} ><${type} style="color: ${diff_color};">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</${type}></td>`;
 
       }
       diffHtml += '</tr>';
@@ -255,9 +287,9 @@ export default class HtmlDiff {
       if (type === 0) {
         diffHtml += text;
       } else if (type === -1) {
-        diffHtml += `<del style="color: #F76964;">${text}</del>`;
+        diffHtml += `<del style="color: ${this.del_color};">${text}</del>`;
       } else if (type === 1) {
-        diffHtml += `<ins style="color: #1E5FCD;">${text}</ins>`;
+        diffHtml += `<ins style="color: ${this.ins_color};">${text}</ins>`;
       }
     });
 
@@ -290,7 +322,7 @@ export default class HtmlDiff {
     var ms_start = (new Date).getTime();
     var diff = dmp.diff_main(text1, text2, true);
 
-    console.log(diff.flat(Infinity), 'diff=============diff');
+    // console.log(diff.flat(Infinity), 'diff=============diff');
     var ms_end = (new Date).getTime();
 
     let time = ms_end - ms_start;
@@ -343,77 +375,93 @@ export default class HtmlDiff {
     return diffHtml + originalHtml;
   }
 
+  /**
+ * 重置 ignore_tag 标志。
+ * 将所有忽略标签的标志设置为 false。
+ */
+  resetIgnoreTagFlags() {
+    this.ignore_tag.forEach(item => item.flag = false);
+  }
+
+  /**
+   * 检查是否在忽略标签内。
+   * @returns {boolean} 如果当前在忽略标签内，返回 true，否则返回 false。
+   */
+  isInIgnoreTag() {
+    return this.ignore_tag.some(item => item.flag);
+  }
+
+  /**
+   * 更新 ignore_tag 标志。
+   * @param {string} html - HTML 字符串。
+   * @param {number} index - 当前处理的索引。
+   * @param {boolean} isOpeningTag - 是否是开始标签。
+   */
+  updateIgnoreTagFlags(html, index, isOpeningTag) {
+    this.ignore_tag.forEach(item => {
+      if (isOpeningTag) {
+        if (html.substr(index + 1, item.openTag.length) === item.openTag) {
+          item.flag = true;
+        }
+      } else {
+        if (item.flag && html.substring(index - item.closeTag.length, index) === item.closeTag) {
+          item.flag = false;
+        }
+      }
+    });
+  }
+
+  /**
+   * 从 HTML 中提取纯文本，忽略指定的标签。
+   * @param {string} html - HTML 字符串。
+   * @returns {string} 提取的纯文本。
+   */
   convertTextFromHtml(html) {
     let text = '';
     let tagFlag = false;
-    this.ignore_tag.map(item => {
-      item.flag = false;
-    });
-    for (let i = 0, len = html.length; i < len; i++) {
+    this.resetIgnoreTagFlags();
+    for (let i = 0; i < html.length; i++) {
       if (!tagFlag && html[i] === '<') {
         tagFlag = true;
-        this.ignore_tag.map(item => {
-          if (html.substr(i + 1, item.openTag.length) === item.openTag) {
-            item.flag = true;
-          }
-        });
+        this.updateIgnoreTagFlags(html, i, true);
       } else if (tagFlag && html[i] === '>') {
         tagFlag = false;
-        this.ignore_tag.map(item => {
-          if (item.flag && html.substring(i - item.closeTag.length, i) === item.closeTag) {
-            item.flag = false;
-          }
-        });
+        this.updateIgnoreTagFlags(html, i, false);
         continue;
       }
-      let notDiffFlag = false;
-      this.ignore_tag.map(item => {
-        if (item.flag) {
-          notDiffFlag = true;
-        }
-      });
-      if (!tagFlag && !notDiffFlag) {
+      if (!tagFlag && !this.isInIgnoreTag()) {
         text += html[i];
       }
     }
     return text;
   }
 
+  /**
+   * 从 HTML 中提取一个标签和其后的文本。
+   * @param {string} html - HTML 字符串。
+   * @returns {Object} 包含标签和文本的对象。
+   * @returns {string} return.tag - 提取的标签。
+   * @returns {string} return.text - 提取的文本。
+   */
   getOneTextFromHtml(html) {
     let tag = '';
     let text = '';
     let tagFlag = false;
-    this.ignore_tag.map(item => {
-      item.flag = false;
-    });
-    for (let i = 0, len = html.length; i < len; i++) {
+    this.resetIgnoreTagFlags();
+    for (let i = 0; i < html.length; i++) {
       if (!tagFlag && html[i] === '<') {
         tagFlag = true;
         if (text) {
           return { tag, text };
         }
-        this.ignore_tag.map(item => {
-          if (html.substr(i + 1, item.openTag.length) === item.openTag) {
-            item.flag = true;
-          }
-        });
+        this.updateIgnoreTagFlags(html, i, true);
       } else if (tagFlag && html[i] === '>') {
         tagFlag = false;
         tag += html[i];
-        this.ignore_tag.map(item => {
-          if (item.flag && html.substring(i - item.closeTag.length, i) === item.closeTag) {
-            item.flag = false;
-          }
-        });
+        this.updateIgnoreTagFlags(html, i, false);
         continue;
       }
-      let notDiffFlag = false;
-      this.ignore_tag.map(item => {
-        if (item.flag) {
-          notDiffFlag = true;
-        }
-      });
-      if (!tagFlag && !notDiffFlag) {
+      if (!tagFlag && !this.isInIgnoreTag()) {
         text += html[i];
       } else {
         tag += html[i];
@@ -426,9 +474,9 @@ export default class HtmlDiff {
     if (diffType === 0) {
       return diffText;
     } else if (diffType === -1) {
-      return '<del style="color:#F76964">' + diffText + '</del>';
+      return `<del style="color:${this.del_color}">${diffText}</del>`;
     } else {
-      return '<ins style="color:#1E5FCD"> ' + diffText + '</ins>';
+      return `<ins style="color:${this.ins_color}">${diffText}</ins>`;
     }
   }
 }

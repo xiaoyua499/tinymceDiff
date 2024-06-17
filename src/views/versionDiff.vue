@@ -17,7 +17,7 @@
 
 <script>
 import Editor from '@tinymce/tinymce-vue'
-import HtmlDiff from '@/common/htmlDiff'
+import HtmlDiff from '@/utils/htmlDiff'
 
 export default {
   name: 'AboutView',
