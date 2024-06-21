@@ -44,9 +44,11 @@ export default class HtmlDiff {
    */
   processHtml(html){
     const htmlJson = this.htmlToJson(html)
+    // console.log(htmlJson,'htmlJson');
     const fragments = []
     htmlJson.forEach(item => {
       const jsonHtml = this.jsonToHtml(item).outerHTML;
+      // console.log(jsonHtml,'jsonHtml');
       fragments.push(jsonHtml)
     })
     return fragments
@@ -123,13 +125,23 @@ export default class HtmlDiff {
       for (var i = 0; i < attrs.length; i++) {
         result.attrs[attrs[i].name] = attrs[i].value;
       }
-      if (element.childNodes.length > 0) {
-        result.children = [];
-        for (var i = 0; i < element.childNodes.length; i++) {
-          var child = element.childNodes[i];
-          if (child.nodeType === Node.TEXT_NODE) {
-            result.text = child.nodeValue.trim();
-          } else if (child.nodeType === Node.ELEMENT_NODE) {
+      result.children = [];
+      result.text = "";
+
+      for (var i = 0; i < element.childNodes.length; i++) {
+        var child = element.childNodes[i];
+        if (child.nodeType === Node.TEXT_NODE) {
+          result.text += child.nodeValue.trim();
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          if (child.nodeName === "BR" || child.nodeName === "HR" || child.nodeName === "INPUT" || child.nodeName === "META" || child.nodeName === "LINK") {
+            // 自闭合标签处理，使用特殊标识符
+            result.text += "@br@";
+            // result.children.push({
+            //   name: child.nodeName.toLowerCase(),
+            //   attrs: {},
+            //   children: []
+            // });
+          } else {
             result.children.push(domToJson(child));
           }
         }
@@ -137,9 +149,10 @@ export default class HtmlDiff {
       return result;
     }
 
+
     // 将整个HTML文档转换为JSON
     const jsonData = domToJson(bodyElement);
-
+    console.log(jsonData.children);
     // 确保返回一个数组
     return jsonData.children || [];
   }
@@ -322,7 +335,6 @@ export default class HtmlDiff {
     var ms_start = (new Date).getTime();
     var diff = dmp.diff_main(text1, text2, true);
 
-    // console.log(diff.flat(Infinity), 'diff=============diff');
     var ms_end = (new Date).getTime();
 
     let time = ms_end - ms_start;
@@ -337,6 +349,10 @@ export default class HtmlDiff {
       let { tag, text } = this.getOneTextFromHtml(originalHtml);
       diffHtml += tag;
       originalHtml = originalHtml.substr(tag.length + text.length);
+
+      // 在处理 text 时将 @br@ 替换为 <br/>
+      text = text.replace(/@br@/g, '<br/>');
+
       for (let i = 0, len = diffResultList.length; i < len; i++) {
         let diffType = diffResultList[i][0];
         let diffText = diffResultList[i][1];
@@ -347,6 +363,10 @@ export default class HtmlDiff {
           len--;
           continue;
         }
+
+        // 在处理 diffText 时将 @br@ 替换为 <br/>
+        diffText = diffText.replace(/@br@/g, '<br/>');
+
         if (diffText === text) {
           diffHtml += this.formatText(diffType, diffText);
           diffResultList.splice(i, 1);
@@ -372,7 +392,7 @@ export default class HtmlDiff {
     for (let i = 0, len = diffResultList.length; i < len; i++) {
       diffHtml += this.formatText(diffResultList[i][0], diffResultList[i][1]);
     }
-    return diffHtml + originalHtml;
+    return diffHtml + originalHtml.replace(/@br@/g, '<br/>');
   }
 
   /**
@@ -471,6 +491,8 @@ export default class HtmlDiff {
   }
 
   formatText(diffType, diffText) {
+    if(diffText === '@br@') return ''
+    diffText=diffText.replace(/@br@/g, '');
     if (diffType === 0) {
       return diffText;
     } else if (diffType === -1) {
