@@ -19,13 +19,13 @@ export default class HtmlDiff {
     if (!html2) html2 = '';
     const fragments1 = this.processHtml(html1);
     const fragments2 = this.processHtml(html2);
-    const [htmlStr1, htmlSt2] = this.compareAndPad(fragments1, fragments2)
+    const [htmlStr1, htmlStr2] = this.compareAndPad(fragments1, fragments2)
     // console.log(htmlStr1, htmlSt2);
     let diffHtml = '';
     let startTime = new Date().getTime();
-    while (htmlStr1.length || htmlSt2.length) {
+    while (htmlStr1.length || htmlStr2.length) {
       const fragment1 = htmlStr1.shift() || '';
-      const fragment2 = htmlSt2.shift() || '';
+      const fragment2 = htmlStr2.shift() || '';
 
       if (this.containsTable(fragment1) || this.containsTable(fragment2)) {
         diffHtml += this.tableDiff(fragment1, fragment2).diffHtml;
@@ -42,7 +42,7 @@ export default class HtmlDiff {
    * @param {string} html 需要加工的html
    * @returns {Array} 加工后的html数组
    */
-  processHtml(html){
+  processHtml(html) {
     const htmlJson = this.htmlToJson(html)
     // console.log(htmlJson,'htmlJson');
     const fragments = []
@@ -73,35 +73,59 @@ export default class HtmlDiff {
     let result2 = [];
     let i = 0, j = 0;
 
-    while (i < fragments1.length || j < fragments2.length) {
-      let item1 = fragments1[i] !== undefined ? fragments1[i] : '';
-      let item2 = fragments2[j] !== undefined ? fragments2[j] : '';
+    // 如果两个数组都为空，则直接返回空的结果数组
+    if (fragments1.length === 0 && fragments2.length === 0) {
+      return [result1, result2];
+    } else if (fragments2.length === 0) {
+      // 如果fragments1为空，则将fragments2中的所有元素添加到结果数组中
+      while (i < fragments1.length) {
 
-      let outermostTag1 = this.getClosingTag(item1);
-      let outermostTag2 = this.getClosingTag(item2);
-
-      if (outermostTag1 === outermostTag2) {
         // 如果最外层标签相同，将 item1 和 item2 分别添加到 result1 和 result2 中
-        result1.push(item1);
-        result2.push(item2);
+        result1.push(fragments1[i]);
+        result2.push('');
         i++;
+      }
+    } else if (fragments1.length === 0) {
+      // 如果fragments2为空，则将fragments1中的所有元素添加到结果数组中
+      while (j < fragments2.length) {
+        result1.push('');
+        result2.push(fragments2[j]);
         j++;
-      } else {
-        if (!item1 || (outermostTag1 && !outermostTag2)) {
-          // 如果 item1 为空，或者 outermostTag1 存在而 outermostTag2 不存在
-          // 将空字符串加入 result1，将 item2 加入 result2
-          result1.push('');
+      }
+    } else {
+      while (i < fragments1.length || j < fragments2.length) {
+        let item1 = i < fragments1.length ? fragments1[i] : '';
+        let item2 = j < fragments2.length ? fragments2[j] : '';
+
+        let outermostTag1 = item1 ? this.getClosingTag(item1) : '';
+        let outermostTag2 = item2 ? this.getClosingTag(item2) : '';
+
+        if (outermostTag1 === outermostTag2) {
+          // 如果最外层标签相同，将 item1 和 item2 分别添加到 result1 和 result2 中
+          result1.push(item1);
           result2.push(item2);
+          i++;
           j++;
         } else {
-          // 否则，将 item1 加入 result1，将空字符串加入 result2
-          result1.push(item1);
-          result2.push('');
-          i++;
+          if (!item1 || (outermostTag1 && !outermostTag2)) {
+            // 如果 item1 为空，或者 outermostTag1 存在而 outermostTag2 不存在
+            // 将空字符串加入 result1，将 item2 加入 result2
+            result1.push('');
+            result2.push(item2);
+            j++;
+          } else {
+            // 否则，将 item1 加入 result1，将空字符串加入 result2
+            result1.push(item1);
+            result2.push('');
+            i++;
+          }
         }
       }
     }
 
+
+
+    console.log(result1, result2, 'result1, result2');
     return [result1, result2];
   }
 
@@ -491,8 +515,8 @@ export default class HtmlDiff {
   }
 
   formatText(diffType, diffText) {
-    if(diffText === '@br@') return ''
-    diffText=diffText.replace(/@br@/g, '');
+    if (diffText === '@br@') return ''
+    diffText = diffText.replace(/@br@/g, '');
     if (diffType === 0) {
       return diffText;
     } else if (diffType === -1) {
