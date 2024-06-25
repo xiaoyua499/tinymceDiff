@@ -73,57 +73,52 @@ export default class HtmlDiff {
     let result2 = [];
     let i = 0, j = 0;
 
-    // 如果两个数组都为空，则直接返回空的结果数组
+    // Helper function to get fragment and its tag
+    const getFragmentAndTag = (fragments, index) => {
+      let item = index < fragments.length ? fragments[index] : '';
+      let tag = item ? this.getClosingTag(item) : '';
+      return { item, tag };
+    }
+
+    // 如果两个数组都为空，直接返回空结果数组
     if (fragments1.length === 0 && fragments2.length === 0) {
       return [result1, result2];
-    } else if (fragments2.length === 0) {
-      // 如果fragments1为空，则将fragments2中的所有元素添加到结果数组中
-      while (i < fragments1.length) {
+    }
 
-        // 如果最外层标签相同，将 item1 和 item2 分别添加到 result1 和 result2 中
-        result1.push(fragments1[i]);
+    // 处理其中一个数组为空的情况
+    if (fragments1.length === 0 || fragments2.length === 0) {
+      let nonEmptyFragments = fragments1.length ? fragments1 : fragments2;
+      let emptyResult = fragments1.length ? result2 : result1;
+      let nonEmptyResult = fragments1.length ? result1 : result2;
+
+      for (let fragment of nonEmptyFragments) {
+        nonEmptyResult.push(fragment);
+        emptyResult.push('');
+      }
+
+      return [result1, result2];
+    }
+
+    // 主循环处理两个数组
+    while (i < fragments1.length || j < fragments2.length) {
+      let { item: item1, tag: tag1 } = getFragmentAndTag(fragments1, i);
+      let { item: item2, tag: tag2 } = getFragmentAndTag(fragments2, j);
+
+      if (tag1 === tag2) {
+        result1.push(item1);
+        result2.push(item2);
+        i++;
+        j++;
+      } else if (!item1 || (tag1 && !tag2)) {
+        result1.push('');
+        result2.push(item2);
+        j++;
+      } else {
+        result1.push(item1);
         result2.push('');
         i++;
       }
-    } else if (fragments1.length === 0) {
-      // 如果fragments2为空，则将fragments1中的所有元素添加到结果数组中
-      while (j < fragments2.length) {
-        result1.push('');
-        result2.push(fragments2[j]);
-        j++;
-      }
-    } else {
-      while (i < fragments1.length || j < fragments2.length) {
-        let item1 = i < fragments1.length ? fragments1[i] : '';
-        let item2 = j < fragments2.length ? fragments2[j] : '';
-
-        let outermostTag1 = item1 ? this.getClosingTag(item1) : '';
-        let outermostTag2 = item2 ? this.getClosingTag(item2) : '';
-
-        if (outermostTag1 === outermostTag2) {
-          // 如果最外层标签相同，将 item1 和 item2 分别添加到 result1 和 result2 中
-          result1.push(item1);
-          result2.push(item2);
-          i++;
-          j++;
-        } else {
-          if (!item1 || (outermostTag1 && !outermostTag2)) {
-            // 如果 item1 为空，或者 outermostTag1 存在而 outermostTag2 不存在
-            // 将空字符串加入 result1，将 item2 加入 result2
-            result1.push('');
-            result2.push(item2);
-            j++;
-          } else {
-            // 否则，将 item1 加入 result1，将空字符串加入 result2
-            result1.push(item1);
-            result2.push('');
-            i++;
-          }
-        }
-      }
     }
-
-
 
     console.log(result1, result2, 'result1, result2');
     return [result1, result2];
