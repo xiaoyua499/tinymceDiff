@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import HomeView from '../views/versionDiff.vue'
+import print from '../views/print.vue'
 
 Vue.use(VueRouter)
 

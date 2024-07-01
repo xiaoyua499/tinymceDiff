@@ -1,12 +1,11 @@
-// 引入 diff_match_patch 库
-import { diff_match_patch } from 'diff-match-patch'; // 请确保安装了相应的库
+import { diff_match_patch } from 'diff-match-patch';
 
 export default class HtmlDiff {
   constructor() {
     this.ignore_tag = [];
-    this.Diff_Timeout = 0;
-    this.del_color = '#F76964'
-    this.ins_color = '#1E5FCD'
+    this.Diff_Timeout = 1.0;  // 设置比对超时时间
+    this.del_color = '#F76964';
+    this.ins_color = '#1E5FCD';
   }
   /**
    * 输入需要比对的html字符串，返回比对结果
@@ -17,245 +16,76 @@ export default class HtmlDiff {
   diff_launch(html1, html2) {
     if (!html1) html1 = '';
     if (!html2) html2 = '';
-    const fragments1 = this.processHtml(html1);
-    const fragments2 = this.processHtml(html2);
-    const [htmlStr1, htmlStr2] = this.compareAndPad(fragments1, fragments2)
-    // console.log(htmlStr1, htmlSt2);
-    let diffHtml = '';
-    let startTime = new Date().getTime();
-    while (htmlStr1.length || htmlStr2.length) {
-      const fragment1 = htmlStr1.shift() || '';
-      const fragment2 = htmlStr2.shift() || '';
+    const tableRegex = /<table[\s\S]*?<\/table>/g;
+    let tableHtml1 = html1.match(tableRegex) || [];
+    let tableHtml2 = html2.match(tableRegex) || [];
 
-      if (this.containsTable(fragment1) || this.containsTable(fragment2)) {
-        diffHtml += this.tableDiff(fragment1, fragment2).diffHtml;
-      } else {
-        diffHtml += this.textDiff(fragment1, fragment2).diffHtml;
-      }
+    let textHtml1 = html1.replace(tableRegex, '@table@');
+    let textHtml2 = html2.replace(tableRegex, '@table@');
+    if (tableHtml1 || tableHtml2) {
+      textHtml1 = textHtml1.replace(/&nbsp;/g, '');
+      textHtml2 = textHtml2.replace(/&nbsp;/g, '');
+    }
+    console.log(tableHtml1, tableHtml2);
+    // 比对表格部分
+    let tableDiffs = [];
+    const maxLength = Math.max(tableHtml1.length, tableHtml2.length);
+    for (let i = 0; i < maxLength; i++) {
+      const table1 = tableHtml1[i] || '';
+      const table2 = tableHtml2[i] || '';
+      const tableDiff = this.tableDiff(table1.replace(/&nbsp;/g, ''), table2.replace(/&nbsp;/g, '')).diffHtml;
+      tableDiffs.push(tableDiff);
     }
 
-    let endTime = new Date().getTime();
-    return { time: endTime - startTime, diffHtml };
-  }
-  /**
-   * 对传入的html进行加工
-   * @param {string} html 需要加工的html
-   * @returns {Array} 加工后的html数组
-   */
-  processHtml(html) {
-    const htmlJson = this.htmlToJson(html)
-    // console.log(htmlJson,'htmlJson');
-    const fragments = []
-    htmlJson.forEach(item => {
-      const jsonHtml = this.jsonToHtml(item).outerHTML;
-      // console.log(jsonHtml,'jsonHtml');
-      fragments.push(jsonHtml)
-    })
-    return fragments
-  }
-  /**
- * 获取html中的闭合标签
- * @param {string} html - 待处理的html字符串
- * @returns {string} - 闭合标签
- */
-  getClosingTag(html) {
-    const match = html.match(/<[^>]+>/);
-    return match ? match[0] : '';
-  }
-  /**
-   * 
-   * @param {Array} fragments1 第一个HTML的fragments数组
-   * @param {Array} fragments2 第二个HTML的fragments数组
-   * @returns {Array} 返回两个数组比较后的结果
-   */
-  compareAndPad(fragments1, fragments2) {
-    let result1 = [];
-    let result2 = [];
-    let i = 0, j = 0;
+    // 比对其他内容部分
+    let diffHtml = this.textDiff(textHtml1, textHtml2).diffHtml;
 
-    // Helper function to get fragment and its tag
-    const getFragmentAndTag = (fragments, index) => {
-      let item = index < fragments.length ? fragments[index] : '';
-      let tag = item ? this.getClosingTag(item) : '';
-      return { item, tag };
-    }
+    // 替换表格占位符
+    tableDiffs.forEach(tableDiff => {
+      diffHtml = diffHtml.replace('@table@', tableDiff);
+    });
 
-    // 如果两个数组都为空，直接返回空结果数组
-    if (fragments1.length === 0 && fragments2.length === 0) {
-      return [result1, result2];
-    }
-
-    // 处理其中一个数组为空的情况
-    if (fragments1.length === 0 || fragments2.length === 0) {
-      let nonEmptyFragments = fragments1.length ? fragments1 : fragments2;
-      let emptyResult = fragments1.length ? result2 : result1;
-      let nonEmptyResult = fragments1.length ? result1 : result2;
-
-      for (let fragment of nonEmptyFragments) {
-        nonEmptyResult.push(fragment);
-        emptyResult.push('');
-      }
-
-      return [result1, result2];
-    }
-
-    // 主循环处理两个数组
-    while (i < fragments1.length || j < fragments2.length) {
-      let { item: item1, tag: tag1 } = getFragmentAndTag(fragments1, i);
-      let { item: item2, tag: tag2 } = getFragmentAndTag(fragments2, j);
-
-      if (tag1 === tag2) {
-        result1.push(item1);
-        result2.push(item2);
-        i++;
-        j++;
-      } else if (!item1 || (tag1 && !tag2)) {
-        result1.push('');
-        result2.push(item2);
-        j++;
-      } else {
-        result1.push(item1);
-        result2.push('');
-        i++;
-      }
-    }
-
-    console.log(result1, result2, 'result1, result2');
-    return [result1, result2];
+    return diffHtml;
   }
 
-  /**
-   * 将HTML字符串转换为JSON格式
-   * @param {string} html - HTML字符串
-   * @returns {object} JSON格式的HTML对象
-   */
-  htmlToJson(html) {
-    // 创建一个虚拟的DOM元素来解析HTML字符串
-    var parser = new DOMParser();
-    var doc = parser.parseFromString(html, 'text/html');
-    // 获取<body>标签
-    var bodyElement = doc.querySelector('body');
-    // 定义一个函数来将DOM元素转换为JSON格式
-    function domToJson(element) {
-      var result = {};
-      result.name = element.nodeName.toLowerCase();
-      result.attrs = {};
-      var attrs = element.attributes;
-      for (var i = 0; i < attrs.length; i++) {
-        result.attrs[attrs[i].name] = attrs[i].value;
-      }
-      result.children = [];
-      result.text = "";
 
-      for (var i = 0; i < element.childNodes.length; i++) {
-        var child = element.childNodes[i];
-        if (child.nodeType === Node.TEXT_NODE) {
-          result.text += child.nodeValue.trim();
-        } else if (child.nodeType === Node.ELEMENT_NODE) {
-          if (child.nodeName === "BR" || child.nodeName === "HR" || child.nodeName === "INPUT" || child.nodeName === "META" || child.nodeName === "LINK") {
-            // 自闭合标签处理，使用特殊标识符
-            result.text += "@br@";
-            // result.children.push({
-            //   name: child.nodeName.toLowerCase(),
-            //   attrs: {},
-            //   children: []
-            // });
-          } else {
-            result.children.push(domToJson(child));
-          }
-        }
-      }
-      return result;
-    }
-
-
-    // 将整个HTML文档转换为JSON
-    const jsonData = domToJson(bodyElement);
-    console.log(jsonData.children);
-    // 确保返回一个数组
-    return jsonData.children || [];
-  }
-  /**
-   * 将JSON格式的HTML对象转换为HTML字符串
-   * @param {object} json - JSON格式的HTML对象
-   * @returns {string} HTML字符串
-   */
-  jsonToHtml(json) {
-    var element = document.createElement(json.name);
-    for (var key in json.attrs) {
-      element.setAttribute(key, json.attrs[key]);
-    }
-    if (json.text) {
-      element.textContent = json.text;
-    }
-    if (json.children && json.children.length > 0) {
-      var self = this; // 保存 this 的引用
-      json.children.forEach(function (childJson) {
-        var childElement = self.jsonToHtml(childJson);
-        element.appendChild(childElement);
-      });
-    }
-    return element;
-  }
-  /**
-   * 检查传入的HTML字符串是否包含<table>标签。
-   * @param {string} html - 待处理的html字符串
-   * @returns {boolean} - 返回是否包含表格标签
-   */
-  containsTable(html) {
-    return html.includes('<table');
-  }
-  /**
-   * 将表格还原为HTML格式,并保留原来的样式
-   * @param {*} html 
-   * @param {*} table 
-   * @param {*} type 
-   * @returns 
-   */
   tableToHtml(html, table, type) {
-    // 提取原始表格的样式属性
     const tableMatch = html.match(/<table([^>]*)>/);
     const tableAttributes = tableMatch ? tableMatch[1] : '';
     let diffHtml = `<table${tableAttributes}>`;
-    for (let i = 0; i < table.length; i++) {
-      let row = table[i] || [];
+
+    for (const row of table) {
       diffHtml += '<tr>';
-      for (let j = 0; j < row.length; j++) {
-        let cell = row[j] || '';
-        // 提取单元格的样式属性
+      for (const cell of row) {
         const cellMatch = cell.match(/<td([^>]*)>/);
         const cellAttributes = cellMatch ? cellMatch[1] : '';
-        const diff_color = type === 'del' ? this.del_color : this.ins_color
-        diffHtml += `<td${cellAttributes} ><${type} style="color: ${diff_color};">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</${type}></td>`;
-
+        console.log(cellAttributes);
+        const diff_color = type === 'del' ? this.del_color : this.ins_color;
+        diffHtml += `<td${cellAttributes}><${type} style="color: ${diff_color};">${cell.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')}</${type}></td>`;
       }
       diffHtml += '</tr>';
     }
+
     diffHtml += '</table>';
     return diffHtml;
   }
+
   tableDiff(html1, html2) {
-    let table1 = this.extractTable(html1);
-    let table2 = this.extractTable(html2);
+    const table1 = this.extractTable(html1);
+    const table2 = this.extractTable(html2);
 
-    // 如果其中一个表格为空
     if (table1.length > 0 && table2.length === 0) {
-      const diffHtml = this.tableToHtml(html1, table1, 'del');
-      return { time: 0, diffHtml };
+      return { time: 0, diffHtml: this.tableToHtml(html1, table1, 'del') };
     } else if (table1.length === 0 && table2.length > 0) {
-
-      const diffHtml = this.tableToHtml(html2, table2, 'ins');
-      return { time: 0, diffHtml };
+      return { time: 0, diffHtml: this.tableToHtml(html2, table2, 'ins') };
     }
 
-    // 确保表格的行数一致
     const maxRows = Math.max(table1.length, table2.length);
     for (let i = 0; i < maxRows; i++) {
       table1[i] = table1[i] || [];
       table2[i] = table2[i] || [];
     }
 
-    // 确保每行的单元格数一致
     table1.forEach((row, rowIndex) => {
       const maxCols = Math.max(row.length, table2[rowIndex].length);
       for (let colIndex = 0; colIndex < maxCols; colIndex++) {
@@ -264,13 +94,12 @@ export default class HtmlDiff {
       }
     });
 
-    const diffHtml = this.generateDiffTableHtml(html1, html2, table1, table2);
-    return { time: 0, diffHtml };
+    return { time: 0, diffHtml: this.generateDiffTableHtml(html1, html2, table1, table2) };
   }
 
   generateDiffTableHtml(html1, html2, table1, table2) {
+    console.log(html1, html2, table1, table2);
     const tableAttributes = this.getTableAttributes(html2);
-
     let diffHtml = `<table ${tableAttributes}>`;
 
     for (let i = 0; i < table1.length; i++) {
@@ -278,9 +107,7 @@ export default class HtmlDiff {
       for (let j = 0; j < table1[i].length; j++) {
         const cell1 = table1[i][j];
         const cell2 = table2[i][j];
-
         const cellAttributes = this.getCellAttributes(html2, i, j);
-
         const cellDiffHtml = this.cellDiff(cell1, cell2);
         diffHtml += `<td ${cellAttributes}>${cellDiffHtml}</td>`;
       }
@@ -288,12 +115,15 @@ export default class HtmlDiff {
     }
 
     diffHtml += '</table>';
+    console.log(diffHtml);
     return diffHtml;
   }
+
   getTableAttributes(html) {
     const tableMatch = html.match(/<table([^>]*)>/);
     return tableMatch ? tableMatch[1] : '';
   }
+
   getCellAttributes(html, rowIndex, colIndex) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
@@ -301,44 +131,61 @@ export default class HtmlDiff {
     const row = table && table.rows[rowIndex];
     const cell = row && row.cells[colIndex];
     if (cell) {
-      const cellAttributes = [];
-      for (let attr of cell.attributes) {
-        cellAttributes.push(`${attr.name}="${attr.value}"`);
-      }
-      return cellAttributes.join(' ');
+      return Array.from(cell.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ');
     }
     return '';
   }
+
   cellDiff(cell1, cell2) {
-    var dmp = new diff_match_patch();
-    var diffs = dmp.diff_main(cell1, cell2);
-    dmp.diff_cleanupSemantic(diffs);
+    // 使用特殊标识符来替换标签的前半部分和后半部分
+    const startTagPlaceholder = '@STARTTAG@';
+    const endTagPlaceholder = '@ENDTAG@';
 
-    let diffHtml = '';
-    diffs.forEach(([type, text]) => {
-      if (type === 0) {
-        diffHtml += text;
-      } else if (type === -1) {
-        diffHtml += `<del style="color: ${this.del_color};">${text}</del>`;
-      } else if (type === 1) {
-        diffHtml += `<ins style="color: ${this.ins_color};">${text}</ins>`;
+    // 保存标签和内容的数组
+    let tags = [];
+
+    // 替换标签并保存
+    const replaceTags = (text) => {
+      return text.replace(/<[^>]+>/gi, (match) => {
+        tags.push(match);
+        return match.startsWith('</') ? endTagPlaceholder : startTagPlaceholder;
+      });
+    };
+    const cleanCell1 = replaceTags(cell1);
+    const cleanCell2 = replaceTags(cell2);
+    const dmp = new diff_match_patch();
+    const diffs = dmp.diff_main(cleanCell1, cleanCell2);
+
+    // 在生成结果时还原标签
+    let tagIndex = 0;
+    let result = diffs.map(([type, text]) => {
+      if (text === startTagPlaceholder || text === endTagPlaceholder) {
+        return text;
       }
-    });
+      if (type === 0) {
+        return text;
+      }
+      const tag = type === -1 ? 'del' : 'ins';
+      const color = type === -1 ? this.del_color : this.ins_color;
+      return `<${tag} style="color: ${color};">${text}</${tag}>`;
+    }).join('');
 
-    return diffHtml;
+    // 替换回特殊标识符为原始的标签
+    result = result.replace(new RegExp(startTagPlaceholder, 'g'), () => tags[tagIndex++])
+      .replace(new RegExp(endTagPlaceholder, 'g'), () => tags[tagIndex++]);
+
+    return result;
   }
-  extractTable(html) {
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(html, 'text/html');
-    let table = doc.querySelector('table');
 
-    let tableData = [];
+  extractTable(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const table = doc.querySelector('table');
+    const tableData = [];
     if (table) {
       table.querySelectorAll('tr').forEach(row => {
-        let rowData = [];
-        row.querySelectorAll('td, th').forEach(cell => {
-          rowData.push(cell.innerHTML);
-        });
+        const rowData = [];
+        row.querySelectorAll('td, th').forEach(cell => rowData.push(cell.innerHTML));
         tableData.push(rowData);
       });
     }
@@ -346,35 +193,33 @@ export default class HtmlDiff {
   }
 
   textDiff(html1, html2) {
-    var text1 = this.convertTextFromHtml(html1);
-    var text2 = this.convertTextFromHtml(html2);
+    const text1 = this.convertTextFromHtml(html1);
+    const text2 = this.convertTextFromHtml(html2);
 
-    var dmp = new diff_match_patch();
+    const dmp = new diff_match_patch();
     dmp.Diff_Timeout = this.Diff_Timeout;
-    var ms_start = (new Date).getTime();
-    var diff = dmp.diff_main(text1, text2, true);
+    const ms_start = new Date().getTime();
+    const diffs = dmp.diff_main(text1, text2, true);
+    const ms_end = new Date().getTime();
 
-    var ms_end = (new Date).getTime();
+    dmp.diff_cleanupSemantic(diffs);
 
-    let time = ms_end - ms_start;
-
-    let diffHtml = this.restoreToHtml(html2, diff);
-    return { time, diffHtml };
+    const diffHtml = this.restoreToHtml(html2, diffs);
+    return { time: ms_end - ms_start, diffHtml };
   }
 
   restoreToHtml(originalHtml, diffResultList) {
     let diffHtml = '';
+
     while (true) {
       let { tag, text } = this.getOneTextFromHtml(originalHtml);
       diffHtml += tag;
       originalHtml = originalHtml.substr(tag.length + text.length);
 
-      // 在处理 text 时将 @br@ 替换为 <br/>
       text = text.replace(/@br@/g, '<br/>');
 
       for (let i = 0, len = diffResultList.length; i < len; i++) {
-        let diffType = diffResultList[i][0];
-        let diffText = diffResultList[i][1];
+        const [diffType, diffText] = diffResultList[i];
         if (diffType === -1) {
           diffHtml += this.formatText(diffType, diffText);
           diffResultList.splice(i, 1);
@@ -383,34 +228,35 @@ export default class HtmlDiff {
           continue;
         }
 
-        // 在处理 diffText 时将 @br@ 替换为 <br/>
-        diffText = diffText.replace(/@br@/g, '<br/>');
-
-        if (diffText === text) {
-          diffHtml += this.formatText(diffType, diffText);
+        let formattedDiffText = diffText.replace(/@br@/g, '<br/>');
+        if (formattedDiffText === text) {
+          diffHtml += this.formatText(diffType, formattedDiffText);
           diffResultList.splice(i, 1);
           break;
         }
-        if (diffText.length > text.length) {
+
+        if (formattedDiffText.length > text.length) {
           diffHtml += this.formatText(diffType, text);
-          diffResultList[i][1] = diffText.substr(text.length);
+          diffResultList[i][1] = formattedDiffText.substr(text.length);
           break;
         }
-        if (text.length > diffText.length) {
-          diffHtml += this.formatText(diffType, diffText);
-          text = text.substr(diffText.length);
+
+        if (text.length > formattedDiffText.length) {
+          diffHtml += this.formatText(diffType, formattedDiffText);
+          text = text.substr(formattedDiffText.length);
           diffResultList.splice(i, 1);
           i--;
           len--;
         }
       }
-      if (!originalHtml || !diffResultList || diffResultList.length <= 0) {
-        break;
-      }
+
+      if (!originalHtml || !diffResultList.length) break;
     }
-    for (let i = 0, len = diffResultList.length; i < len; i++) {
-      diffHtml += this.formatText(diffResultList[i][0], diffResultList[i][1]);
-    }
+
+    diffResultList.forEach(([diffType, diffText]) => {
+      diffHtml += this.formatText(diffType, diffText);
+    });
+
     return diffHtml + originalHtml.replace(/@br@/g, '<br/>');
   }
 
@@ -438,14 +284,10 @@ export default class HtmlDiff {
    */
   updateIgnoreTagFlags(html, index, isOpeningTag) {
     this.ignore_tag.forEach(item => {
-      if (isOpeningTag) {
-        if (html.substr(index + 1, item.openTag.length) === item.openTag) {
-          item.flag = true;
-        }
-      } else {
-        if (item.flag && html.substring(index - item.closeTag.length, index) === item.closeTag) {
-          item.flag = false;
-        }
+      if (isOpeningTag && html.substr(index + 1, item.openTag.length) === item.openTag) {
+        item.flag = true;
+      } else if (item.flag && html.substring(index - item.closeTag.length, index) === item.closeTag) {
+        item.flag = false;
       }
     });
   }
@@ -459,6 +301,7 @@ export default class HtmlDiff {
     let text = '';
     let tagFlag = false;
     this.resetIgnoreTagFlags();
+
     for (let i = 0; i < html.length; i++) {
       if (!tagFlag && html[i] === '<') {
         tagFlag = true;
@@ -468,10 +311,12 @@ export default class HtmlDiff {
         this.updateIgnoreTagFlags(html, i, false);
         continue;
       }
+
       if (!tagFlag && !this.isInIgnoreTag()) {
         text += html[i];
       }
     }
+
     return text;
   }
 
@@ -487,12 +332,11 @@ export default class HtmlDiff {
     let text = '';
     let tagFlag = false;
     this.resetIgnoreTagFlags();
+
     for (let i = 0; i < html.length; i++) {
       if (!tagFlag && html[i] === '<') {
         tagFlag = true;
-        if (text) {
-          return { tag, text };
-        }
+        if (text) return { tag, text };
         this.updateIgnoreTagFlags(html, i, true);
       } else if (tagFlag && html[i] === '>') {
         tagFlag = false;
@@ -500,24 +344,23 @@ export default class HtmlDiff {
         this.updateIgnoreTagFlags(html, i, false);
         continue;
       }
+
       if (!tagFlag && !this.isInIgnoreTag()) {
         text += html[i];
       } else {
         tag += html[i];
       }
     }
+
     return { tag, text };
   }
 
   formatText(diffType, diffText) {
-    if (diffText === '@br@') return ''
+    if (diffText === '@br@') return '';
     diffText = diffText.replace(/@br@/g, '');
-    if (diffType === 0) {
-      return diffText;
-    } else if (diffType === -1) {
-      return `<del style="color:${this.del_color}">${diffText}</del>`;
-    } else {
-      return `<ins style="color:${this.ins_color}">${diffText}</ins>`;
-    }
+    if (diffType === 0) return diffText;
+    const tag = diffType === -1 ? 'del' : 'ins';
+    const color = diffType === -1 ? this.del_color : this.ins_color;
+    return `<${tag} style="color:${color}">${diffText}</${tag}>`;
   }
 }
