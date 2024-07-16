@@ -1,7 +1,7 @@
 <template>
   <div>
     <div>
-      <h3 >原始文本</h3>
+      <h3>原始文本</h3>
       <Editor :api-key="apiKey" id="editor1" :init="tinymceInit"></Editor>
     </div>
     <div>
@@ -12,13 +12,13 @@
     <div id="diff-output">
       <Editor :api-key="apiKey" id="editor3" :init="tinymceInit"></Editor>
     </div>
-    
   </div>
 </template>
 
 <script>
 import Editor from '@tinymce/tinymce-vue'
 import HtmlDiff from '@/utils/htmlDiff'
+import logo from '@/assets/logo.png'
 
 export default {
   name: 'AboutView',
@@ -42,16 +42,30 @@ export default {
   },
   methods: {
     init() {
-      const htmldome = '<table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">asdf</td><td style="width: 48.6688%; height: 22.3984px;">啊海防</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">零件<br/>海峰</td><td style="width: 48.6688%; height: 22.3984px;">哦出哦i儿童</td></tr></tbody></table>'
+      // const htmldome1 = '<table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">asdf</td><td style="width: 48.6688%; height: 22.3984px;">啊海防</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">零件<br/>海峰</td><td style="width: 48.6688%; height: 22.3984px;">哦出哦i儿童</td></tr></tbody></table>'
+      // const htmldome2 = '<table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">asdf</td><td style="width: 48.6688%; height: 22.3984px;">啊海防</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">零件<br/>海峰</td><td style="width: 48.6688%; height: 22.3984px;">哦<span style="color: rgb(255, 0, 0);" id="123">出哦i儿</span>童</td></tr></tbody></table>'
       // const htmldome = '<p>来来<br/>来来来带来</p>'
-      // const htmldome='<p>凭证类型:业务受理单模板(对客户)</p><p>前端流水号:</p><div style="display: flex;justify-content: space-between;align-items: center;"><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p></div><p>-----------------客户/账户信息----------------</p>'
-      // const htmldome = '<ol><li>哈哈哈哈哈</li><li><table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">哈哈哈哈</td><td style="width: 48.6688%; height: 22.3984px;">一一春春<br/>春春</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">11111111</td><td style="width: 48.6688%; height: 22.3984px;">阿塞阀塞缝</td></tr></tbody></table></li><li>看浪啊双开甲方阿塞</li></ol>'
+      // const htmldome = '<p style="text-align: left;">凭证类型:业务受理单模板(对客户)</p><p style = "text-align: right;" > 前端流水号:</p><div style="display: flex;justify-content: space-between;align-items: center;"><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p></div><p>-----------------客户/账户信息----------------</p><div style="display: flex;justify-content: space-between;align-items: center;"><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p></div><div style="display: flex;justify-content: space-between;align-items: center;"><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p></div><p>-----------------客户/账户信息----------------</p><p style="text-align: left;">第X笔:(交易名称)</p><div style="display: flex;justify-content: space-between;align-items: center;"><p>交易日期:</p><p>交易日期:</p><p>交易日期:</p></div>'
+      const htmldome = '<ul><li>哈哈哈哈哈</li><li><table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">哈哈哈哈</td><td style="width: 48.6688%; height: 22.3984px;">一一春春<br/>春春</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">11111111</td><td style="width: 48.6688%; height: 22.3984px;">阿塞阀塞缝</td></tr></tbody></table></li><li>看浪啊双开甲方阿塞</li></ul>'
       // const htmldome1='<p>来来<br/>来来来带来</p>'
       // const htmldome2='<p>来来<br/><span class="annotion"><span style="color: rgb(255, 0, 0);">来来来</span></span>带来</p>'
       tinymce.editors['editor1'].setContent(htmldome)
       tinymce.editors['editor2'].setContent(htmldome)
     },
     showDiff() {
+      const boxes = document.querySelectorAll('.mce-tinymce')
+      boxes.forEach(box=>{
+        box.addEventListener('click',() =>{
+          box.classList.toggle('chicked')
+        })
+      })
+      document.addEventListener('click',(e)=>{
+        boxes.forEach(box=>{
+          if(!box.contains(e.target)){
+            box.classList.remove('chicked')
+          }
+        })
+      })
       const editor1Content = tinymce.get('editor1').getContent()
       // console.log(editor1Content)
       const editor2Content = tinymce.get('editor2').getContent()
@@ -60,7 +74,7 @@ export default {
       let html2 = editor2Content;
       const htmlDiff = new HtmlDiff();
       const diffHtml = htmlDiff.diff_launch(html1, html2);
-      console.log(diffHtml,'12312312');
+      console.log(diffHtml, '12312312');
       tinymce.editors['editor3'].setContent(diffHtml)
     },
   }

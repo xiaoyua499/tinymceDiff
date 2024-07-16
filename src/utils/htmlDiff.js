@@ -14,6 +14,7 @@ export default class HtmlDiff {
    * @returns {object} 比对结果
    */
   diff_launch(html1, html2) {
+    console.log(html1, html2);
     if (!html1) html1 = '';
     if (!html2) html2 = '';
     const tableRegex = /<table[\s\S]*?<\/table>/g;
@@ -169,7 +170,7 @@ export default class HtmlDiff {
       const color = type === -1 ? this.del_color : this.ins_color;
       return `<${tag} style="color: ${color};">${text}</${tag}>`;
     }).join('');
-
+    console.log(result);
     // 替换回特殊标识符为原始的标签
     result = result.replace(new RegExp(startTagPlaceholder, 'g'), () => tags[tagIndex++])
       .replace(new RegExp(endTagPlaceholder, 'g'), () => tags[tagIndex++]);
@@ -354,11 +355,11 @@ export default class HtmlDiff {
 
     return { tag, text };
   }
-
   formatText(diffType, diffText) {
     if (diffText === '@br@') return '';
     diffText = diffText.replace(/@br@/g, '');
     if (diffType === 0) return diffText;
+    if (!diffText.trim()) return ''; // 如果diffText为空，则不生成标签
     const tag = diffType === -1 ? 'del' : 'ins';
     const color = diffType === -1 ? this.del_color : this.ins_color;
     return `<${tag} style="color:${color}">${diffText}</${tag}>`;
