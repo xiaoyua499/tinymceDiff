@@ -138,44 +138,56 @@ export default class HtmlDiff {
   }
 
   cellDiff(cell1, cell2) {
-    // 使用特殊标识符来替换标签的前半部分和后半部分
-    const startTagPlaceholder = '@STARTTAG@';
-    const endTagPlaceholder = '@ENDTAG@';
+    const hasList1 = /<ul>|<ol>/i.test(cell1);
+    const hasList2 = /<ul>|<ol>/i.test(cell2);
+    console.log(hasList1, hasList2);
+    
+    // 如果单元格中包含有序或无序列表，使用文本比对
+    if (hasList1 || hasList2) {
+      console.log(cell1, cell2);
+      
+      return this.textDiff(cell1, cell2).diffHtml;
+    }else{
+      // 使用特殊标识符来替换标签的前半部分和后半部分
+      const startTagPlaceholder = '@STARTTAG@';
+      const endTagPlaceholder = '@ENDTAG@';
 
-    // 保存标签和内容的数组
-    let tags = [];
+      // 保存标签和内容的数组
+      let tags = [];
 
-    // 替换标签并保存
-    const replaceTags = (text) => {
-      return text.replace(/<[^>]+>/gi, (match) => {
-        tags.push(match);
-        return match.startsWith('</') ? endTagPlaceholder : startTagPlaceholder;
-      });
-    };
-    const cleanCell1 = replaceTags(cell1);
-    const cleanCell2 = replaceTags(cell2);
-    const dmp = new diff_match_patch();
-    const diffs = dmp.diff_main(cleanCell1, cleanCell2);
+      // 替换标签并保存
+      const replaceTags = (text) => {
+        return text.replace(/<[^>]+>/gi, (match) => {
+          tags.push(match);
+          return match.startsWith('</') ? endTagPlaceholder : startTagPlaceholder;
+        });
+      };
+      const cleanCell1 = replaceTags(cell1);
+      const cleanCell2 = replaceTags(cell2);
+      const dmp = new diff_match_patch();
+      const diffs = dmp.diff_main(cleanCell1, cleanCell2);
 
-    // 在生成结果时还原标签
-    let tagIndex = 0;
-    let result = diffs.map(([type, text]) => {
-      if (text === startTagPlaceholder || text === endTagPlaceholder) {
-        return text;
-      }
-      if (type === 0) {
-        return text;
-      }
-      const tag = type === -1 ? 'del' : 'ins';
-      const color = type === -1 ? this.del_color : this.ins_color;
-      return `<${tag} style="color: ${color};">${text}</${tag}>`;
-    }).join('');
-    console.log(result);
-    // 替换回特殊标识符为原始的标签
-    result = result.replace(new RegExp(startTagPlaceholder, 'g'), () => tags[tagIndex++])
-      .replace(new RegExp(endTagPlaceholder, 'g'), () => tags[tagIndex++]);
+      // 在生成结果时还原标签
+      let tagIndex = 0;
+      let result = diffs.map(([type, text]) => {
+        if (text === startTagPlaceholder || text === endTagPlaceholder) {
+          return text;
+        }
+        if (type === 0) {
+          return text;
+        }
+        const tag = type === -1 ? 'del' : 'ins';
+        const color = type === -1 ? this.del_color : this.ins_color;
+        return `<${tag} style="color: ${color};">${text}</${tag}>`;
+      }).join('');
+      console.log(result);
+      // 替换回特殊标识符为原始的标签
+      result = result.replace(new RegExp(startTagPlaceholder, 'g'), () => tags[tagIndex++])
+        .replace(new RegExp(endTagPlaceholder, 'g'), () => tags[tagIndex++]);
 
-    return result;
+      return result;
+    }
+    
   }
 
   extractTable(html) {
@@ -203,7 +215,7 @@ export default class HtmlDiff {
     const diffs = dmp.diff_main(text1, text2, true);
     const ms_end = new Date().getTime();
 
-    dmp.diff_cleanupSemantic(diffs);
+    // dmp.diff_cleanupSemantic(diffs);
 
     const diffHtml = this.restoreToHtml(html2, diffs);
     return { time: ms_end - ms_start, diffHtml };
