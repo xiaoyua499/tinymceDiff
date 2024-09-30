@@ -20,7 +20,7 @@ import Editor from '@tinymce/tinymce-vue'
 import HtmlDiff from '@/utils/htmlDiff'
 import tinymceInit from '@/common/tinymceConfig/index'
 export default {
-  name: 'AboutView',
+  name: 'versionDiff',
   components: {
     Editor,
   },
@@ -38,6 +38,7 @@ export default {
   },
   methods: {
     init() {
+
       // const htmldome1 = '<table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">asdf</td><td style="width: 48.6688%; height: 22.3984px;">啊海防</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">零件<br/>海峰</td><td style="width: 48.6688%; height: 22.3984px;">哦出哦i儿童</td></tr></tbody></table>'
       // const htmldome2 = '<table style = "border-collapse: collapse; width: 100%; height: 44.7968px;" border = "1" ><tbody><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">asdf</td><td style="width: 48.6688%; height: 22.3984px;">啊海防</td></tr><tr style="height: 22.3984px;"><td style="width: 48.6688%; height: 22.3984px;">零件<br/>海峰</td><td style="width: 48.6688%; height: 22.3984px;">哦<span style="color: rgb(255, 0, 0);" id="123">出哦i儿</span>童</td></tr></tbody></table>'
       // const htmldome = '<p>来来<br/>来来来带来</p>'
