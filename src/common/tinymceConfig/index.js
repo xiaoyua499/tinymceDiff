@@ -1,8 +1,9 @@
 import contextMenuImage from './plugin/contextMenuImage'
 import handleBackspaceInList from './plugin/handleBackspaceInList'
 import limitListNestingDepth from './plugin/limitListNestingDepth'
+import imageZoom from './plugin/imageZoom'
 const tinymceInit = {
-  plugins: ["table", "lists", "image"],
+  plugins: ["table", "lists", "image",'imageZoom'],
   toolbar: "table tabledelete | tableprops tablerowprops tablecellprops | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol|bullist numlist|contextMenuImage",
   contextmenu: 'customInsertImage', 
   image_caption: true,
@@ -24,6 +25,8 @@ const tinymceInit = {
     handleBackspaceInList(editor)
     //限制列表的嵌套深度
     limitListNestingDepth(editor)
+    //双击图片查看功能
+    imageZoom()
   }
 }
 
